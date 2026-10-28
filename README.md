@@ -1,0 +1,172 @@
+# Skincare Product Review Analysis
+
+Turn thousands of unstructured skincare reviews into answers a product or marketing team can act on:
+**which products customers love, which ones disappoint, and why.**
+
+The pipeline audits and cleans the raw reviews, classifies sentiment, ranks products *fairly* (a product with two
+5-star reviews should not beat one with 40 reviews averaging 4.8), asks an LLM to summarize recurring praise and
+complaints, and exports everything to a lightweight web dashboard.
+
+> Started as a bootcamp capstone, now maintained as an independent project.
+> See [docs/project_history.md](docs/project_history.md) for what changed and why.
+
+## What it does
+
+1. **Audits** the raw data and prints how many rows each quality problem affects (nothing is modified yet).
+2. **Cleans** it with nine rules applied in a fixed order, each logged with its row counts (see below).
+3. **Classifies sentiment** from the star rating (4–5 Positive, 3 Neutral, 1–2 Negative).
+4. **Ranks products fairly** with a Bayesian weighted rating and a minimum review count.
+5. **Summarizes themes with Google Gemini**: why the top 3 products are praised, why the bottom 3 are criticized.
+6. **Exports** four data files that power a static dashboard (product ranking, sentiment mix, AI summaries, review explorer).
+
+Source data: [Skincare Review](https://www.kaggle.com/datasets/hafidahmusthaanah/skincare-review) by
+hafidahmusthaanah (see [docs/dataset.md](docs/dataset.md)): 8,646 reviews of 802 products.
+
+## Preprocessing
+
+The notebook's Step 2 audits the raw data and Step 3 applies these rules (all switches are plain variables at the
+top of Step 2). The numbers are from the run included in this repository:
+
+| # | Rule | Effect on this dataset |
+| --- | --- | --- |
+| 1 | Drop rows without review or rating, keep ratings 1–5 | 0 rows |
+| 2 | Strip the scraper's `... Read more` suffix, normalize whitespace, drop reviews under 10 characters, keep a `Review_Truncated` flag | 5,405 reviews had been cut off by the scraper, 0 rows dropped |
+| 3 | Merge product names that differ only by case/spacing | 802 → 798 distinct products |
+| 4 | Remove exact duplicates (`Product` + `UserName` + `Review`) | −203 rows |
+| 5 | Mask phone numbers, `@handles`, links, e-mails (`[PHONE]`, `[HANDLE]`, …) | 403 reviews edited |
+| 6 | Remove resale posts (sale intent **and** a price or contact detail) | −526 rows |
+| 7 | Parse `PostDate` (including Indonesian month names) | 1,789 reviews keep an empty date |
+| 8–9 | Derive `Sentiment`, `SkinType`, `AgeGroup`, `Recommended`, `Review_Length` | – |
+
+**8,646 rows loaded → 7,917 kept.** The full log is stored in `overall_stats.json → preprocessing`.
+
+## Results (from the notebook run)
+
+| Metric | Value |
+| --- | --- |
+| Reviews / products | 7,917 / 798 (781 ranked, minimum 5 reviews) |
+| Average rating | 3.98 / 5 |
+| Sentiment | Positive 71.6% (5,672) · Neutral 17.5% (1,389) · Negative 10.8% (856) |
+| Rating counts (1★→5★) | 264 · 592 · 1,389 · 2,433 · 3,239 |
+| Dated reviews | 2015-09-16 → 2020-09-12 (see data quality notes for the undated 22.6%) |
+
+**Top 3 and what customers praise** (Gemini summary of positive reviews):
+
+| Rank | Product | Weighted | Reviews | Themes |
+| --- | --- | --- | --- | --- |
+| 1 | Facial Moiturizing Lotion - PM | 4.66 | 10 | Lightweight, fast-absorbing, non-sticky · gentle and non-comedogenic · restores the skin barrier |
+| 2 | Minyak Zaitun | 4.64 | 20 | Deeply moisturizing for dry skin · pleasant aroma · multi-purpose |
+| 3 | Acne Solution | 4.64 | 9 | Dries acne fast · brightening · affordable |
+
+**Bottom 3 and what customers complain about** (summary of negative reviews):
+
+| Rank | Product | Weighted | Reviews | Themes |
+| --- | --- | --- | --- | --- |
+| 781 | Blackhead Nose Mask | 2.26 | 10 | Does not remove blackheads · weak peel-off · strong scent |
+| 780 | Eye treatment serum | 2.33 | 10 | No visible results · stinging/burning · faulty pump |
+| 779 | Peel Off Charcoal Black Head Nose Pack | 2.53 | 10 | Does not remove blackheads · strong scent · painful peel-off |
+
+How to read this:
+
+- **The bottom of the ranking is stable.** The same three products, in the same order, were also the worst before
+  duplicates and resale posts were removed. The top is less stable: ranks 2–5 share the same weighted rating to
+  three decimals (4.637), so their order comes from the tie-break (more reviews first, then name A→Z), not from a
+  real quality difference. Removing a single review moved *Facial Treatment Mask* from rank 2 to rank 4.
+- Two of the bottom three are blackhead nose packs, so product *type* seems to matter as much as individual
+  products (10 reviews each, so treat it as a hint rather than a finding).
+
+## Repository layout
+
+```
+skincare-review-analysis/
+├── notebooks/
+│   ├── 01_skincare_review_analysis.ipynb      # main pipeline (Gemini), with executed outputs
+│   ├── dashboard_data/                        # generated by the notebook (git-ignored)
+│   └── archive/
+│       └── 00_capstone_bootcamp_original_id.ipynb   # original capstone (Indonesian, IBM Granite)
+├── dashboard/                                 # static HTML/CSS/JS dashboard ("Glowboard"), no build step
+├── scripts/
+│   ├── generate_demo_data.py                  # SYNTHETIC data with the same schema, for previews/CI
+│   └── validate_dashboard_data.py             # checks an export against what the dashboard reads
+├── tests/dashboard_smoke.js                   # renders the dashboard in jsdom and checks the DOM
+├── docs/                                      # dataset, methodology, data dictionary, project history
+├── .github/workflows/ci.yml
+├── .env.example
+├── requirements.txt  requirements-dev.txt  requirements-legacy.txt
+└── Makefile
+```
+
+## Quick start
+
+### A. Preview the dashboard with demo data (no API keys)
+
+Use this on a fresh clone, where `notebooks/dashboard_data/` is empty (the real export is git-ignored, see below).
+
+```bash
+python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+python scripts/generate_demo_data.py                    # writes SYNTHETIC data to notebooks/dashboard_data/
+python -m http.server 8000                              # run from the repository root
+# open http://localhost:8000/dashboard/
+```
+
+The demo data uses invented products and review text, none of its numbers describe real products.
+The generator refuses to overwrite an existing export unless you pass `--force`.
+
+### B. Run the real pipeline
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env            # then put your key in GEMINI_API_KEY  (Windows: copy .env.example .env)
+jupyter lab                     # open notebooks/01_skincare_review_analysis.ipynb, Run All
+python scripts/validate_dashboard_data.py
+python -m http.server 8000      # http://localhost:8000/dashboard/
+```
+
+Notes:
+- The notebook downloads the dataset with `kagglehub` (Kaggle may ask for credentials on first use).
+- Run the notebook from its own folder (the Jupyter / VS Code default): Step 8 writes to
+  `notebooks/dashboard_data/`, which is where the dashboard reads from.
+- The dashboard must be served over HTTP, opening `index.html` by double-click cannot load the data files.
+
+## Method in one paragraph
+
+`weighted_rating = (v·R + m·C) / (v + m)` where `v` is a product's review count, `R` its mean rating,
+`C` the global mean and `m` a prior weight (default 5). Products under 5 reviews stay visible but unranked.
+Full details and the reasoning behind the defaults: [docs/methodology.md](docs/methodology.md).
+
+## Data, privacy and licensing
+
+- The raw dataset is **not** redistributed here, the notebook downloads it from Kaggle. Check the dataset's
+  license on its Kaggle page before publishing anything derived from it ([docs/dataset.md](docs/dataset.md)).
+- The export drops `UserName` and the raw recommend text (which embeds the username), and masks phone numbers,
+  `@handles`, links and e-mails inside the review text. The notebook's saved output hides those columns too.
+- `notebooks/dashboard_data/` is git-ignored because it contains review text derived from the dataset and AI output.
+  The headline results are summarized in this README instead. If the dataset license allows redistribution, remove
+  that line from `.gitignore` to publish the export (the dashboard then works straight from a clone).
+- Never commit `.env`. API keys belong in the environment only.
+
+## Data quality notes
+
+Remaining in the exported `reviews_clean.csv` after cleaning:
+
+- **Undated reviews:** 1,789 of 7,917 (22.6%) have no `PostDate`. In the raw data the most common unparseable
+  values are relative timestamps such as "a day ago", "2 days ago" and "6 hours ago", i.e. reviews posted shortly
+  before the data was collected. They could be dated approximately if the collection date were known, they are
+  currently left undated and excluded from the dashboard's monthly trend.
+- **Thin early history:** of the dated reviews, 4,967 are from 2020, versus 25 from 2015.
+- **Truncated text:** 5,049 kept reviews (63.8%) are flagged `Review_Truncated`: the source text stops around 270
+  characters, so AI summaries rest on partial reviews.
+- **Mentions of resale:** about 150 reviews still mention preloved/sold without a price or contact detail, they are
+  kept on purpose because many are genuine reviews that carry a "preloved" tag.
+- **Missing fields:** `SkinType` is empty for 393 reviews, `AgeGroup` for 68, `Recommended` for 900.
+
+## Limitations
+
+- Sentiment comes from the star rating, so it inherits rating noise (e.g. a 3-star review that reads positive).
+- The resale rule is a keyword heuristic and its precision was not measured: it can remove a genuine opinion that
+  also carries a sale pitch. Set `DROP_RESALE_POSTS = False` in Step 2 to keep those rows.
+- AI summaries rest on a random sample of up to 30 reviews per product and can vary between runs.
+- Only the top 3 and bottom 3 products get AI summaries.
+- The review text is Indonesian, summaries are generated in English.

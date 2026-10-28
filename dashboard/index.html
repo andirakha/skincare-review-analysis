@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>Glowboard · Skincare intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700;800&display=swap"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="mark">G</span><span>Glowboard / intelligence</span>
+        </div>
+        <div class="top-meta">
+          <span class="status">Live sample dataset</span><span id="meta"></span>
+        </div>
+      </header>
+      <section class="intro">
+        <div>
+          <div class="eyebrow">Skincare review dashboard</div>
+          <h1>Listen closely to what skin is saying.</h1>
+          <p>
+            A clearer view of product performance, sentiment, and the small
+            details behind every review.
+          </p>
+        </div>
+        <div class="date-card">
+          <span>DATA WINDOW</span><strong id="dateWindow">—</strong
+          ><span id="datasetLabel">—</span>
+        </div>
+      </section>
+      <div class="kpis" id="kpis"></div>
+      <div class="layout">
+        <section class="card" id="ranking">
+          <div class="card-head">
+            <div>
+              <h2>Product ranking</h2>
+              <p class="sub">
+                Weighted scores keep small samples in perspective.
+              </p>
+            </div>
+            <span class="src">product_summary.csv</span>
+          </div>
+          <div class="bar" id="rankTabs">
+            <button class="tab" data-m="top" aria-pressed="true">Top 10</button
+            ><button class="tab" data-m="bottom" aria-pressed="false">
+              Bottom 10</button
+            ><button class="tab" data-m="all" aria-pressed="false">
+              All products</button
+            ><input
+              type="search"
+              id="rankSearch"
+              placeholder="Search a product"
+              aria-label="Search a product"
+              hidden
+            />
+          </div>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Product</th>
+                  <th>Weighted rating</th>
+                  <th>Avg</th>
+                  <th>Reviews</th>
+                  <th>Sentiment mix</th>
+                </tr>
+              </thead>
+              <tbody id="rankBody"></tbody>
+            </table>
+          </div>
+          <p class="note" id="rankNote"></p>
+        </section>
+        <div class="stack">
+          <section class="card">
+            <div class="card-head">
+              <div>
+                <h2>Sentiment</h2>
+                <p class="sub">Share of all reviews</p>
+              </div>
+              <span class="src">overall_stats.json</span>
+            </div>
+            <div class="donutwrap">
+              <svg
+                id="donut"
+                viewBox="0 0 36 36"
+                role="img"
+                aria-label="Sentiment donut chart"
+              ></svg>
+              <div class="legend" id="legend"></div>
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-head">
+              <div>
+                <h2>Rating distribution</h2>
+                <p class="sub">Reviews by star rating</p>
+              </div>
+              <span class="src">overall_stats.json</span>
+            </div>
+            <div id="rates"></div>
+          </section>
+          <section class="card">
+            <div class="card-head">
+              <div>
+                <h2>Average rating by month</h2>
+                <p class="sub">Trend across all products</p>
+              </div>
+              <span class="src">reviews_clean.csv</span>
+            </div>
+            <svg
+              id="trend"
+              viewBox="0 0 300 90"
+              width="100%"
+              role="img"
+              aria-label="Average rating by month"
+            ></svg>
+          </section>
+        </div>
+      </div>
+      <div class="insights ai" id="ai"></div>
+      <section class="card explorer" id="explorer">
+        <div class="card-head">
+          <div>
+            <h2>Review explorer</h2>
+            <p class="sub">
+              Select a product above or combine filters to inspect the raw voice
+              of customers.
+            </p>
+          </div>
+          <span class="src">reviews_clean.csv</span>
+        </div>
+        <div class="bar">
+          <select id="fProduct" aria-label="Product"></select
+          ><select id="fSent" aria-label="Sentiment">
+            <option value="">All sentiments</option>
+            <option>Positive</option>
+            <option>Neutral</option>
+            <option>Negative</option></select
+          ><select id="fSkin" aria-label="Skin type"></select
+          ><select id="fAge" aria-label="Age group"></select
+          ><input
+            type="search"
+            id="fText"
+            placeholder="Search review text"
+            aria-label="Search review text"
+          />
+        </div>
+        <div id="revCount" class="sub"></div>
+        <div id="revList"></div>
+        <div class="pager" id="revPager">
+          <button class="tab" id="revPrev" type="button">← Previous</button>
+          <span class="sub" id="revPage"></span>
+          <button class="tab" id="revNext" type="button">Next →</button>
+        </div>
+      </section>
+      <p class="method">
+        Method: weighted rating = (v × R + m × C) ÷ (v + m). Products below the
+        minimum review count stay visible but unranked.
+      </p>
+    </main>
+    <script>
+      if (location.protocol === "file:")
+        document
+          .querySelector(".shell")
+          .insertAdjacentHTML(
+            "afterbegin",
+            '<div class="load-error"><b>This page was opened directly from a file.</b> Browsers cannot read the data in <code>notebooks/dashboard_data/</code> this way. Run <code>python -m http.server</code> from the repository root, then open <code>http://localhost:8000/dashboard/</code> (or use Live Server in VS Code with the repository root as the workspace).</div>',
+          );
+    </script>
+    <script type="module" src="script.js"></script>
+  </body>
+</html>

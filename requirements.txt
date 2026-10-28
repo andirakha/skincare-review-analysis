@@ -1,0 +1,9 @@
+# Runtime dependencies for notebooks/01_skincare_review_analysis.ipynb
+# Lower bounds only (not pinned) - pin with `pip freeze` if you need exact reproducibility.
+pandas>=2.0
+matplotlib>=3.7
+seaborn>=0.13
+kagglehub>=0.3
+google-genai>=1.0
+python-dotenv>=1.0
+jupyterlab>=4.0

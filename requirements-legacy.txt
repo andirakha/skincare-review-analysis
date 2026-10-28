@@ -1,0 +1,9 @@
+# Only for notebooks/archive/00_capstone_bootcamp_original_id.ipynb
+# (Google Colab + Replicate / IBM Granite; the original model access was bootcamp-only).
+pandas>=2.0
+matplotlib>=3.7
+seaborn>=0.13
+wordcloud
+kagglehub>=0.3
+langchain_community
+replicate

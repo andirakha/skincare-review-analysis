@@ -1,0 +1,11 @@
+{
+  "name": "skincare-review-analysis",
+  "private": true,
+  "description": "Dev tooling only: smoke test for the static dashboard. The dashboard itself has no build step.",
+  "scripts": {
+    "test": "node tests/dashboard_smoke.js"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}
